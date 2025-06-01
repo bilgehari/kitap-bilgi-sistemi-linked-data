@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitap Bilgi Sistemi - Linked Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .search-box {
+            display: flex;
+            margin-bottom: 30px;
+            gap: 10px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .results {
+            margin-top: 20px;
+        }
+        
+        .book-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            background: #fafafa;
+        }
+        
+        .book-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .book-info {
+            margin: 8px 0;
+            color: #666;
+        }
+        
+        .linked-data {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Kitap Bilgi Sistemi</h1>
+        <p style="text-align: center; color: #666;">Linked Data ile Semantik Kitap Arama</p>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Kitap adı veya yazar adı girin..." />
+            <button onclick="searchBooks()">Ara</button>
+        </div>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        async function searchBooks() {
+            const query = document.getElementById('searchInput').value;
+            const resultsDiv = document.getElementById('results');
+            
+            if (!query.trim()) {
+                alert('Lütfen bir arama terimi girin!');
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<div class="loading">Aranıyor...</div>';
+            
+            try {
+                const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`);
+                const data = await response.json();
+                
+                if (data.items && data.items.length > 0) {
+                    displayBooks(data.items);
+                } else {
+                    resultsDiv.innerHTML = '<div class="loading">Kitap bulunamadı.</div>';
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="loading">Hata oluştu: ' + error.message + '</div>';
+            }
+        }
+        
+        function displayBooks(books) {
+            const resultsDiv = document.getElementById('results');
+            let html = '';
+            
+            books.forEach((item, index) => {
+                const book = item.volumeInfo;
+                
+                // Linked Data (JSON-LD) formatı oluştur
+                const linkedData = {
+                    "@context": "https://schema.org/",
+                    "@type": "Book",
+                    "@id": "book:" + (book.title ? book.title.replace(/\s+/g, '-').toLowerCase() : 'unknown-' + index),
+                    "name": book.title || "Başlık yok",
+                    "author": book.authors ? book.authors.map(author => ({
+                        "@type": "Person",
+                        "name": author
+                    })) : [],
+                    "datePublished": book.publishedDate || "",
+                    "description": book.description ? book.description.substring(0, 200) + "..." : "",
+                    "genre": book.categories || [],
+                    "publisher": book.publisher || "",
+                    "url": book.infoLink || ""
+                };
+                
+                html += `
+                    <div class="book-card">
+                        <div class="book-title">${book.title || 'Başlık yok'}</div>
+                        <div class="book-info"><strong>Yazar:</strong> ${book.authors ? book.authors.join(', ') : 'Bilinmiyor'}</div>
+                        <div class="book-info"><strong>Yayın Tarihi:</strong> ${book.publishedDate || 'Bilinmiyor'}</div>
+                        <div class="book-info"><strong>Yayınevi:</strong> ${book.publisher || 'Bilinmiyor'}</div>
+                        <div class="book-info"><strong>Kategori:</strong> ${book.categories ? book.categories.join(', ') : 'Bilinmiyor'}</div>
+                        
+                        <details>
+                            <summary style="cursor: pointer; margin-top: 10px; font-weight: bold;">📊 Linked Data (JSON-LD) Formatı</summary>
+                            <div class="linked-data">
+                                <pre>${JSON.stringify(linkedData, null, 2)}</pre>
+                            </div>
+                        </details>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        // Enter tuşu ile arama
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchBooks();
+            }
+        });
+    </script>
+</body>
+</html>
